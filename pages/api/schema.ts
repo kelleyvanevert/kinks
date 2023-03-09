@@ -46,6 +46,7 @@ const KinkStatType = builder.objectRef<KinkStat>("KinkStat").implement({
 type GroupResults = {
   group_code: string;
   num_entries: number;
+  num_participants: number;
   kinks?: KinkStat[];
 };
 
@@ -56,6 +57,7 @@ const GroupResultsType = builder
       return {
         group_code: t.exposeString("group_code"),
         num_entries: t.exposeInt("num_entries"),
+        num_participants: t.exposeInt("num_participants"),
         kinks: t.field({
           type: [KinkStatType],
           nullable: true,
@@ -133,14 +135,17 @@ builder.queryField("group", (t) => {
     async resolve(parent, args) {
       const res = await db.pool.query(
         `
-          select count(*) as count
+          select
+            count(*) as num_entries,
+            count(distinct code) as num_participants
           from entries
           where group_code = $1
         `,
         [args.group_code]
       );
 
-      const num_entries = res.rows[0].count as number;
+      const num_entries = res.rows[0].num_entries as number;
+      const num_participants = res.rows[0].num_participants as number;
 
       let kinks: undefined | KinkStat[] = undefined;
 
@@ -165,19 +170,9 @@ builder.queryField("group", (t) => {
       return {
         group_code: args.group_code,
         num_entries,
+        num_participants,
         kinks,
       };
-    },
-  });
-});
-
-builder.queryField("kinks", (t) => {
-  return t.field({
-    type: [Entry],
-    async resolve() {
-      const res = await db.pool.query("select * from entries");
-      console.log(res.rows);
-      return res.rows;
     },
   });
 });
