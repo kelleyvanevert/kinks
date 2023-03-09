@@ -1,0 +1,11 @@
+services:
+  kinkdb:
+    image: postgres:15
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: kinkyuser
+      POSTGRES_PASSWORD: kinkypass
+      POSTGRES_DB: kinkydb
+    volumes:
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
