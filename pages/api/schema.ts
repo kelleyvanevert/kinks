@@ -102,7 +102,11 @@ builder.queryField("groups", (t) => {
     type: [GroupStats],
     async resolve(parent, args, context, info) {
       if (!context.isAdmin) {
-        throw new GraphQLError("bla");
+        throw new GraphQLError("Unauthorized", {
+          extensions: {
+            code: "UNAUTHORIZED",
+          },
+        });
       }
 
       const res = await db.pool.query(
@@ -140,7 +144,7 @@ builder.queryField("group", (t) => {
 
       let kinks: undefined | KinkStat[] = undefined;
 
-      if (num_entries > 3) {
+      if (num_entries >= 4) {
         const res = await db.pool.query(
           `
             select

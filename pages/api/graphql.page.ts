@@ -9,7 +9,9 @@ export default createYoga<{
   schema,
   graphqlEndpoint: "/api/graphql",
   context({ req }) {
-    const isAdmin = req.headers["kelley"] === "yep";
+    const isAdmin =
+      req.headers["authorization"] === "60a0aca55d2df93a2eec0e5313db5a8b";
+    // ..which is md5(<SUPER-SECRET!!>) :P
 
     return {
       isAdmin,
