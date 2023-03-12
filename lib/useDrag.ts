@@ -3,14 +3,17 @@ import { constrain } from "./constrain";
 import { useRefCallback } from "./useRefCallback";
 
 type UseDragOptions = {
+  disabled?: boolean;
   padding?: number;
+  onMove?: (pos: { x: number; y: number }) => void;
   onFinish?: (pos: { x: number; y: number }, bounds: DOMRect) => void;
 };
 
 export function useDrag(
   ref: RefObject<HTMLElement>,
-  { padding = 0, onFinish }: UseDragOptions
+  { disabled, padding = 0, onMove, onFinish }: UseDragOptions
 ) {
+  const _onMove = useRefCallback(onMove);
   const _onFinish = useRefCallback(onFinish);
 
   const isTouching = useRef<{
@@ -22,7 +25,7 @@ export function useDrag(
   }>();
 
   useEffect(() => {
-    if (!ref.current) return;
+    if (disabled || !ref.current) return;
 
     const _updatePos = (
       e: { clientX: number; clientY: number },
@@ -38,6 +41,7 @@ export function useDrag(
         _onFinish(newTouchAt, rect);
         setTouchAt(undefined);
       } else {
+        onMove?.(newTouchAt);
         setTouchAt(newTouchAt);
       }
     };
@@ -138,7 +142,7 @@ export function useDrag(
       ref.current?.removeEventListener("touchend", onTouchEnd);
       ref.current?.removeEventListener("contextmenu", onContextMenu);
     };
-  }, [_onFinish, padding]);
+  }, [_onFinish, disabled, padding]);
 
   return {
     touchAt,

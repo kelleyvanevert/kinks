@@ -1,19 +1,27 @@
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import cx from "classnames";
 import { useSuggestionBox } from "./SuggestionBox";
-import { constrain } from "@/lib/constrain";
 import { interpolate } from "@/lib/interpolate";
 import { useDrag } from "@/lib/useDrag";
 import { ExplainerBox } from "./ExplainerBox";
+import { useBoundingClientRect } from "@/lib/useBoundingClientRect";
 
 type PageState = {
   mode: "suggestion";
 };
 
-const MapPad = 6;
+const MapPad = 8;
 const DotSize = 8;
+const EditDotSize = 20;
+
+type Entry = {
+  id: string;
+  kink: string;
+  interest: number;
+  taboo: number;
+};
 
 export default function ParticipantPage() {
   const router = useRouter();
@@ -23,8 +31,10 @@ export default function ParticipantPage() {
   // });
 
   const sugg = useSuggestionBox();
+  const inSuggestionMode = sugg.isOpen;
+  const [numJustPlaced, setNumJustPlaced] = useState(0);
 
-  const [kinks, setKinks] = useState(() => {
+  const [entries, setKinks] = useState<Entry[]>(() => {
     return [
       {
         id: "bn8723",
@@ -48,20 +58,37 @@ export default function ParticipantPage() {
   });
 
   const ref = useRef<HTMLDivElement>(null);
-  const { touchAt } = useDrag(ref, {
+
+  const [selectedEntry, setSelectedEntry] = useState<Entry>();
+
+  const inFocusMode = inSuggestionMode || !!selectedEntry;
+
+  const { touchAt: moveTo } = useDrag(ref, {
+    disabled: !selectedEntry,
     padding: MapPad,
-    onFinish(pos, bounds) {
+  });
+
+  const enterSuggestionMode = () => {
+    setSelectedEntry(undefined);
+    setNumJustPlaced(0);
+    sugg.open();
+  };
+
+  const { touchAt } = useDrag(ref, {
+    disabled: !inSuggestionMode,
+    padding: MapPad,
+    onFinish(pos, rect) {
       if (!sugg) return;
 
       const taboo = interpolate(
         pos.x,
-        [MapPad, bounds.width - MapPad],
+        [MapPad, rect.width - MapPad],
         [0, 100],
         "clamp"
       );
       const interest =
         100 -
-        interpolate(pos.y, [MapPad, bounds.height - MapPad], [0, 100], "clamp");
+        interpolate(pos.y, [MapPad, rect.height - MapPad], [0, 100], "clamp");
 
       setKinks((curr) => [
         ...curr,
@@ -74,8 +101,52 @@ export default function ParticipantPage() {
       ]);
 
       sugg.next();
+      setNumJustPlaced((n) => n + 1);
     },
   });
+
+  const rect = useBoundingClientRect(ref);
+
+  // This is not necessary for the displaying the map, because we can just use percentages for that -- but for click-detection, I'd like to combine a max click offset in pixels + nearest dot detection (for if there's many in the same area), and then is necessary
+  const positionedEntries = useMemo(() => {
+    if (!rect) return;
+
+    return entries.map((entry) => {
+      return {
+        ...entry,
+        x: interpolate(entry.taboo, [0, 100], [MapPad, rect.width - MapPad]),
+        y: interpolate(
+          entry.interest,
+          [0, 100],
+          [rect.height - MapPad, MapPad]
+        ),
+      };
+    });
+  }, [rect, entries]);
+
+  useEffect(() => {
+    if (!rect || !positionedEntries || inSuggestionMode) return;
+
+    const onClick = (e: MouseEvent) => {
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const maxDist = 30;
+
+      const entry = positionedEntries
+        .map<[Entry, number]>((entry) => {
+          const dist = Math.abs(entry.x - x) + Math.abs(entry.y - y);
+          return [entry, dist];
+        })
+        .filter((t) => t[1] < maxDist)
+        .sort((s, t) => s[1] - t[1])[0]?.[0];
+
+      setSelectedEntry(entry);
+    };
+
+    ref.current?.addEventListener("click", onClick);
+    return () => ref.current?.removeEventListener("click", onClick);
+  }, [rect, positionedEntries, inSuggestionMode, setSelectedEntry]);
 
   return (
     <div className="bg-gray-100 grow">
@@ -124,41 +195,87 @@ export default function ParticipantPage() {
 
           <div
             ref={ref}
-            className="bg-white rounded absolute top-[12px] right-[12px] left-[30px] bottom-[30px] shadow-lg border"
+            className="bg-white rounded absolute top-[12px] right-[12px] left-[30px] bottom-[30px] shadow-lg overflow-hidden select-none"
           >
-            <div
-              style={{
-                position: "absolute",
-                top: MapPad,
-                left: MapPad,
-                right: MapPad,
-                bottom: MapPad,
-                pointerEvents: "none",
-              }}
-            >
-              {kinks.map((entry) => {
+            <div>
+              {positionedEntries?.map((entry) => {
+                const isSelected = entry.id === selectedEntry?.id;
+                const size = isSelected ? EditDotSize : DotSize;
+
                 return (
                   <div
                     key={entry.id}
                     style={{
-                      width: DotSize,
-                      height: DotSize,
                       position: "absolute",
-                      left: `${entry.taboo}%`,
-                      bottom: `${entry.interest}%`,
-                      marginLeft: -DotSize / 2,
-                      marginBlock: -DotSize / 2,
+                      left: entry.x,
+                      top: entry.y,
                     }}
-                    className="bg-black rounded-full"
-                  ></div>
+                  >
+                    <div
+                      style={{
+                        width: size,
+                        height: size,
+                        marginLeft: -size / 2,
+                        marginBlock: -size / 2,
+                      }}
+                      className={cx(
+                        "bg-pink-500 rounded-full transition-all",
+                        isSelected &&
+                          "border-white border-[4px] shadow-lg utline outline-[rgba(0,0,0,0.1)]"
+                      )}
+                    ></div>
+                    <div
+                      className={cx(
+                        "absolute whitespace-nowrap text-[10px] leading-[14px] select-none text-gray-500 transition-all",
+                        inFocusMode
+                          ? "opacity-0 translate-y-1"
+                          : "opacity-100 translate-y-0"
+                      )}
+                      style={{
+                        top: DotSize / 2,
+                        left: -20,
+                      }}
+                    >
+                      {entry.kink}
+                    </div>
+                  </div>
                 );
               })}
             </div>
 
             <div
               className={cx(
-                "pointer-events-none touch-none absolute inset-[-1px] bg-pink-500 border border-pink-700 rounded transition-opacity",
-                touchAt ? "opacity-80" : "opacity-0"
+                "pointer-events-none touch-none absolute inset-0 rounded transition-opacity flex justify-center items-center p-10",
+                !inSuggestionMode || touchAt ? "opacity-0" : "opacity-100"
+              )}
+            >
+              <div className="text-xl text-center">
+                <span className="bg-white bg-opacity-60">
+                  {numJustPlaced === 0 ? (
+                    "Select a spot on your map to place the kink"
+                  ) : numJustPlaced === 1 ? (
+                    <span>
+                      Excellent!
+                      <br />
+                      And what about this one?
+                    </span>
+                  ) : numJustPlaced === 2 ? (
+                    "The more kinks the better :)"
+                  ) : numJustPlaced === 3 ? (
+                    "Data data data!"
+                  ) : null}
+                </span>
+              </div>
+            </div>
+
+            <div
+              className={cx(
+                "pointer-events-none touch-none absolute inset-0 bg-pink-500 rounded transition-opacity",
+                touchAt
+                  ? "opacity-80"
+                  : selectedEntry
+                  ? "opacity-80"
+                  : "opacity-0"
               )}
             ></div>
 
@@ -173,8 +290,13 @@ export default function ParticipantPage() {
                 }}
               >
                 <div
-                  style={{ width: 20, height: 20 }}
-                  className="bg-pink-500 rounded-full border-white border-[4px] shadow-lg ml-[-12px] mt-[-12px]"
+                  style={{
+                    width: EditDotSize,
+                    height: EditDotSize,
+                    marginTop: -EditDotSize / 2,
+                    marginLeft: -EditDotSize / 2,
+                  }}
+                  className="bg-pink-500 rounded-full border-white border-[4px] shadow-lg"
                 ></div>
               </div>
             )}
@@ -182,9 +304,9 @@ export default function ParticipantPage() {
         </div>
 
         {sugg.isOpen ? (
-          sugg.ui
+          sugg.render()
         ) : (
-          <ExplainerBox onAskForSuggestions={sugg.open} />
+          <ExplainerBox onAskForSuggestions={enterSuggestionMode} />
         )}
       </div>
     </div>
