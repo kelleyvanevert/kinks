@@ -177,6 +177,55 @@ builder.queryField("group", (t) => {
   });
 });
 
+type ParticipantResults = {
+  group_code: string;
+  code: string;
+  entries: Entry[];
+};
+
+const ParticipantResultsType = builder
+  .objectRef<ParticipantResults>("ParticipantResults")
+  .implement({
+    fields(t) {
+      return {
+        group_code: t.exposeString("group_code"),
+        code: t.exposeString("code"),
+        entries: t.field({
+          type: [Entry],
+          resolve(participant_results) {
+            return participant_results.entries;
+          },
+        }),
+      };
+    },
+  });
+
+builder.queryField("participant", (t) => {
+  return t.field({
+    type: ParticipantResultsType,
+    args: {
+      group_code: t.arg.string({ required: true }),
+      code: t.arg.string({ required: true }),
+    },
+    async resolve(parent, args) {
+      const res = await db.pool.query(
+        `
+          select *
+          from entries
+          where group_code = $1 and code = $2
+        `,
+        [args.group_code, args.code]
+      );
+
+      return {
+        group_code: args.group_code,
+        code: args.code,
+        entries: res.rows,
+      };
+    },
+  });
+});
+
 builder.mutationType({});
 builder.queryType({});
 
