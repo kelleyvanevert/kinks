@@ -99,3 +99,39 @@ export const UpsertEntry: ApiQueryDef<
     });
   },
 };
+
+export const RemoveEntry: ApiQueryDef<
+  null | Pick<Entry, "uuid" | "kink">,
+  {
+    input: {
+      group_code: string;
+      code: string;
+      kink: string;
+    };
+  }
+> = {
+  extractData: "removeEntry",
+  isMutation: true,
+  query() {
+    return gql`
+      mutation RemoveEntryInput($input: RemoveEntryInput!) {
+        removeEntry(input: $input) {
+          uuid
+          kink
+        }
+      }
+    `;
+  },
+  invalidation(client, removedEntry) {
+    if (!removedEntry) return;
+
+    client.updateCache(GetParticipant, (data) => {
+      return {
+        ...data,
+        entries: data.entries.filter((e) => {
+          return e.uuid !== removedEntry.uuid;
+        }),
+      };
+    });
+  },
+};

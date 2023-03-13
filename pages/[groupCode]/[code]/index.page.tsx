@@ -9,6 +9,7 @@ import { ExplainerBox } from "./ExplainerBox";
 import { useBoundingClientRect } from "@/lib/useBoundingClientRect";
 import { useApiMutation, useApiQuery } from "@/lib/ApiClient";
 import { Entry, GetParticipant, UpsertEntry } from "@/lib/methods";
+import { EntryBox } from "./EntryBox";
 
 const MapPad = 8;
 const DotSize = 6;
@@ -31,7 +32,9 @@ export default function ParticipantPage() {
 
   const ref = useRef<HTMLDivElement>(null);
 
-  const [selectedEntry, setSelectedEntry] = useState<Entry>();
+  const [selectedEntry, setSelectedEntry] = useState<
+    Entry & { x: number; y: number }
+  >();
 
   const inFocusMode = inSuggestionMode || !!selectedEntry;
 
@@ -117,7 +120,7 @@ export default function ParticipantPage() {
       const maxDist = 30;
 
       const entry = positionedEntries
-        .map<[Entry, number]>((entry) => {
+        .map<[Entry & { x: number; y: number }, number]>((entry) => {
           const dist = Math.abs(entry.x - x) + Math.abs(entry.y - y);
           return [entry, dist];
         })
@@ -182,9 +185,6 @@ export default function ParticipantPage() {
           >
             <div>
               {positionedEntries?.map((entry) => {
-                const isSelected = entry.uuid === selectedEntry?.uuid;
-                const size = isSelected ? EditDotSize : DotSize;
-
                 return (
                   <div
                     key={entry.uuid}
@@ -196,21 +196,17 @@ export default function ParticipantPage() {
                   >
                     <div
                       style={{
-                        width: size,
-                        height: size,
-                        marginLeft: -size / 2,
-                        marginBlock: -size / 2,
+                        width: DotSize,
+                        height: DotSize,
+                        marginLeft: -DotSize / 2,
+                        marginBlock: -DotSize / 2,
                       }}
-                      className={cx(
-                        "bg-blue-400 rounded-full transition-all",
-                        isSelected &&
-                          "border-white border-[4px] shadow-lg utline outline-[rgba(0,0,0,0.1)]"
-                      )}
+                      className="bg-blue-400 rounded-full transition-all"
                     ></div>
                     <div
                       className={cx(
                         "absolute whitespace-nowrap text-[10px] leading-[14px] select-none text-gray-500 transition-all",
-                        inFocusMode
+                        inSuggestionMode
                           ? "opacity-0 translate-y-1"
                           : "opacity-100 translate-y-0"
                       )}
@@ -264,6 +260,7 @@ export default function ParticipantPage() {
 
             {touchAt && (
               <div
+                key="add"
                 style={{
                   touchAction: "none",
                   pointerEvents: "none",
@@ -283,11 +280,39 @@ export default function ParticipantPage() {
                 ></div>
               </div>
             )}
+
+            {selectedEntry && (
+              <div
+                key="edit"
+                style={{
+                  touchAction: "none",
+                  pointerEvents: "none",
+                  position: "absolute",
+                  left: selectedEntry.x,
+                  top: selectedEntry.y,
+                }}
+              >
+                <div
+                  style={{
+                    width: EditDotSize,
+                    height: EditDotSize,
+                    marginTop: -EditDotSize / 2,
+                    marginLeft: -EditDotSize / 2,
+                  }}
+                  className="animate-zoom bg-pink-500 rounded-full border-white border-[4px] shadow-lg"
+                ></div>
+              </div>
+            )}
           </div>
         </div>
 
         {sugg.isOpen ? (
           sugg.render()
+        ) : selectedEntry ? (
+          <EntryBox
+            entry={selectedEntry}
+            onDismiss={() => setSelectedEntry(undefined)}
+          />
         ) : (
           <ExplainerBox onAskForSuggestions={enterSuggestionMode} />
         )}

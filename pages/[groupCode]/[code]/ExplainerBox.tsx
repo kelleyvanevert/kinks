@@ -29,7 +29,7 @@ export function ExplainerBox({ onAskForSuggestions }: Props) {
         <button
           type="button"
           onClick={onAskForSuggestions}
-          className="font-display flex items-center rounded border border-emerald-800 px-3 py-1 transition-transform active:scale-95 focus:bg-emerald-800 focus:bg-opacity-10"
+          className="font-medium flex items-center rounded border border-emerald-800 px-3 py-1 transition-transform active:scale-95 focus:bg-emerald-800 focus:bg-opacity-10"
         >
           <FilledCircledPlusIcon className="mr-1" />
           Add new kinks

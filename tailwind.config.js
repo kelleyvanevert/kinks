@@ -13,10 +13,21 @@ module.exports = {
         sans: ["'Rubik'", "sans-serif"],
       },
       animation: {
+        zoom: "zoom 0.2s ease 1 forwards",
         success: "success 0.2s ease 1 forwards",
         growAndSpin: "growAndSpin 0.3s cubic-bezier(.43,.01,.61,.9) 1 forwards",
       },
       keyframes: {
+        zoom: {
+          from: {
+            opacity: 0,
+            transform: `scale(0)`,
+          },
+          to: {
+            opacity: 1,
+            transform: `scale(1)`,
+          },
+        },
         success: {
           from: {
             opacity: 0,
