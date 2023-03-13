@@ -6,7 +6,10 @@ type UseDragOptions = {
   disabled?: boolean;
   padding?: number;
   onMove?: (pos: { x: number; y: number }) => void;
-  onFinish?: (pos: { x: number; y: number }, bounds: DOMRect) => void;
+  onFinish?: (
+    pos: { x: number; y: number },
+    bounds: DOMRect
+  ) => void | Promise<void>;
 };
 
 export function useDrag(
@@ -27,7 +30,9 @@ export function useDrag(
   useEffect(() => {
     if (disabled || !ref.current) return;
 
-    const _updatePos = (
+    let isCompleting = false;
+
+    const _updatePos = async (
       e: { clientX: number; clientY: number },
       complete: boolean
     ) => {
@@ -38,15 +43,18 @@ export function useDrag(
       };
 
       if (complete) {
-        _onFinish(newTouchAt, rect);
+        isCompleting = true;
+        await _onFinish(newTouchAt, rect);
+        isCompleting = false;
         setTouchAt(undefined);
       } else {
-        onMove?.(newTouchAt);
+        _onMove(newTouchAt);
         setTouchAt(newTouchAt);
       }
     };
 
     const onMouseDown = (e: MouseEvent) => {
+      if (isCompleting) return;
       if (isTouching.current) return;
 
       const identifier = 0;
@@ -75,6 +83,7 @@ export function useDrag(
     };
 
     const onTouchStart = (e: TouchEvent) => {
+      if (isCompleting) return;
       if (isTouching.current) return;
 
       const touch = e.touches[0];
@@ -142,7 +151,7 @@ export function useDrag(
       ref.current?.removeEventListener("touchend", onTouchEnd);
       ref.current?.removeEventListener("contextmenu", onContextMenu);
     };
-  }, [_onFinish, disabled, padding]);
+  }, [_onFinish, _onMove, disabled, padding]);
 
   return {
     touchAt,

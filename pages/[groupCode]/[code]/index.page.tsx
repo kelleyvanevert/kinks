@@ -60,7 +60,7 @@ export default function ParticipantPage({ groupCode, code }: Props) {
   const upsertEntry = useApiMutation(UpsertEntry);
 
   const { touchAt } = useDrag(mapRef, {
-    disabled: !inSuggestionMode,
+    disabled: !inSuggestionMode || !sugg.kink,
     padding: KinkMap.MapPad,
     async onFinish(pos, rect) {
       if (!sugg) return;
