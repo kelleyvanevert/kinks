@@ -26,7 +26,9 @@ export default function ParticipantPage() {
     }
   );
 
-  const sugg = useSuggestionBox();
+  const sugg = useSuggestionBox({
+    exclude: getParticipant.data?.entries.map((e) => e.kink),
+  });
   const inSuggestionMode = sugg.isOpen;
   const [numJustPlaced, setNumJustPlaced] = useState(0);
 

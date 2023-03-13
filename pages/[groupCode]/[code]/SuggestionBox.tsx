@@ -9,13 +9,17 @@ import { Kinks } from "@/lib/kinks";
 import { useRefCallback } from "@/lib/useRefCallback";
 import { CloseIcon } from "@/ui/icons/CloseIcon";
 
-export function useSuggestionBox() {
+type Props = {
+  exclude?: string[];
+};
+
+export function useSuggestionBox({ exclude }: Props) {
   const [isOpen, setIsOpen] = useState(false);
 
   const [writeMode, setWriteMode] = useState(false);
 
   const [kink, setKink] = useState(() => {
-    return randomFromArray(Kinks);
+    return randomFromArray(Kinks, exclude);
   });
 
   const animating = useAsync(async () => {
@@ -31,7 +35,7 @@ export function useSuggestionBox() {
     if (writeMode) {
       setKink("");
     } else {
-      setKink(randomFromArray(Kinks));
+      setKink(randomFromArray(Kinks, exclude));
       animating.mutate();
     }
   });
