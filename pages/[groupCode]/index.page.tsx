@@ -52,14 +52,27 @@ export default function GroupPage({ groupCode }: Props) {
           </h1>
           <div className="mt-2 text-gray-500 text-sm text-center leading-tight">
             So far,{" "}
-            <span className="font-bold text-black">
-              {getGroup.data?.numParticipants ?? "?"} people
-            </span>{" "}
-            have contributed their kinks to this group's dataset.
+            {getGroup.data?.numParticipants === 0 ? (
+              <>
+                <span className="font-bold text-black">no one</span> has
+              </>
+            ) : getGroup.data?.numParticipants === 1 ? (
+              <>
+                <span className="font-bold text-black">1 person</span> has
+              </>
+            ) : (
+              <>
+                <span className="font-bold text-black">
+                  {getGroup.data?.numParticipants ?? "?"} people
+                </span>{" "}
+                have
+              </>
+            )}{" "}
+            contributed their kinks to this group's dataset.
           </div>
           <div className="mt-2 mb-4 text-gray-500 text-sm text-center leading-tight">
-            The map shows their average attitudes towards kinks. Their personal
-            data remains anonymous.
+            The map below shows their average attitudes towards kinks. Their
+            personal data remains anonymous.
           </div>
         </div>
 
@@ -125,7 +138,18 @@ export default function GroupPage({ groupCode }: Props) {
             stat={selectedKinkStat}
             onDismiss={() => setSelectedKinkStat(undefined)}
           />
-        ) : null}
+        ) : (
+          <div className="animate-success relative mt-6 bg-gray-200 p-4 rounded-2xl mx-4">
+            <div className="text-gray-500 text-sm text-center leading-tight">
+              Want to add your data to this group? Choose an anonymous code and
+              enter this URL into your browser:
+            </div>
+            <div className="text-center mt-3 font-medium">
+              https://kinks.klve.nl/{groupCode}/
+              <span className="bg-pink-500 italic text-white px-1">code</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

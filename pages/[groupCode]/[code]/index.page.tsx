@@ -115,9 +115,6 @@ export default function ParticipantPage({ groupCode, code }: Props) {
 
         <div className="mt-4 px-4">
           <h1 className="font-display text-center text-3xl">Your kinkmap</h1>
-          {/* <div className="text-gray-500 text-sm text-center leading-tight">
-            Select kinks and place them on your map.
-          </div> */}
         </div>
 
         <KinkMap
