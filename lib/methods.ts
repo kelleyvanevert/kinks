@@ -41,6 +41,41 @@ export const GetParticipant: ApiQueryDef<
   },
 };
 
+export type KinkStat = {
+  kink: string;
+  taboo: number;
+  interest: number;
+  numEntries: number;
+};
+
+export type Group = {
+  groupCode: string;
+  numParticipants: number;
+  numEntries: number;
+  kinks?: KinkStat[];
+};
+
+export const GetGroup: ApiQueryDef<Group, { groupCode: string }> = {
+  extractData: "group",
+  query() {
+    return gql`
+      query Group($groupCode: String!) {
+        group(group_code: $groupCode) {
+          groupCode: group_code
+          numParticipants: num_participants
+          numEntries: num_entries
+          kinks {
+            kink
+            taboo: avg_taboo
+            interest: avg_interest
+            numEntries: num_entries
+          }
+        }
+      }
+    `;
+  },
+};
+
 export const UpsertEntry: ApiQueryDef<
   Entry,
   {

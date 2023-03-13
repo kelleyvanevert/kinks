@@ -1,30 +1,38 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { GetServerSideProps } from "next";
 import Link from "next/link";
-import { useRouter } from "next/router";
 import cx from "classnames";
 import { useSuggestionBox } from "./SuggestionBox";
 import { interpolate } from "@/lib/interpolate";
 import { useDrag } from "@/lib/useDrag";
 import { ExplainerBox } from "./ExplainerBox";
-import { useBoundingClientRect } from "@/lib/useBoundingClientRect";
 import { useApiMutation, useApiQuery } from "@/lib/ApiClient";
 import { Entry, GetParticipant, UpsertEntry } from "@/lib/methods";
 import { EntryBox } from "./EntryBox";
+import { KinkMap } from "@/components/KinkMap";
+import { ThreeDotsIcon } from "@/ui/icons/ThreeDotsIcon";
 
-const MapPad = 8;
-const DotSize = 6;
-const EditDotSize = 20;
+type Props = {
+  groupCode: string;
+  code: string;
+};
 
-export default function ParticipantPage() {
-  const router = useRouter();
+export const getServerSideProps: GetServerSideProps<Props> = async (
+  context
+) => {
+  return {
+    props: {
+      groupCode: String(context.params?.groupCode),
+      code: String(context.params?.code),
+    },
+  };
+};
 
-  const getParticipant = useApiQuery(
-    GetParticipant,
-    router.isReady && {
-      groupCode: String(router.query.groupCode),
-      code: String(router.query.code),
-    }
-  );
+export default function ParticipantPage({ groupCode, code }: Props) {
+  const getParticipant = useApiQuery(GetParticipant, {
+    groupCode,
+    code,
+  });
 
   const sugg = useSuggestionBox({
     exclude: getParticipant.data?.entries.map((e) => e.kink),
@@ -32,17 +40,15 @@ export default function ParticipantPage() {
   const inSuggestionMode = sugg.isOpen;
   const [numJustPlaced, setNumJustPlaced] = useState(0);
 
-  const ref = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
 
   const [selectedEntry, setSelectedEntry] = useState<
     Entry & { x: number; y: number }
   >();
 
-  const inFocusMode = inSuggestionMode || !!selectedEntry;
-
-  const { touchAt: moveTo } = useDrag(ref, {
+  const { touchAt: moveTo } = useDrag(mapRef, {
     disabled: !selectedEntry,
-    padding: MapPad,
+    padding: KinkMap.MapPad,
   });
 
   const enterSuggestionMode = () => {
@@ -53,101 +59,58 @@ export default function ParticipantPage() {
 
   const upsertEntry = useApiMutation(UpsertEntry);
 
-  const { touchAt } = useDrag(ref, {
+  const { touchAt } = useDrag(mapRef, {
     disabled: !inSuggestionMode,
-    padding: MapPad,
+    padding: KinkMap.MapPad,
     async onFinish(pos, rect) {
       if (!sugg) return;
 
       const taboo = Math.round(
-        interpolate(pos.x, [MapPad, rect.width - MapPad], [0, 100], "clamp")
+        interpolate(
+          pos.x,
+          [KinkMap.MapPad, rect.width - KinkMap.MapPad],
+          [0, 100],
+          "clamp"
+        )
       );
 
       const interest = Math.round(
         100 -
-          interpolate(pos.y, [MapPad, rect.height - MapPad], [0, 100], "clamp")
+          interpolate(
+            pos.y,
+            [KinkMap.MapPad, rect.height - KinkMap.MapPad],
+            [0, 100],
+            "clamp"
+          )
       );
 
       await upsertEntry.mutateAsync({
         input: {
-          group_code: String(router.query.groupCode),
-          code: String(router.query.code),
+          group_code: groupCode,
+          code,
           kink: sugg.kink,
           taboo,
           interest,
         },
       });
 
-      // setKinks((curr) => [
-      //   ...curr,
-      //   {
-      //     id: "" + Math.random(),
-      //     kink: sugg.kink,
-      //     taboo,
-      //     interest,
-      //   },
-      // ]);
-
       sugg.next();
       setNumJustPlaced((n) => n + 1);
     },
   });
 
-  const rect = useBoundingClientRect(ref);
-
-  // This is not necessary for the displaying the map, because we can just use percentages for that -- but for click-detection, I'd like to combine a max click offset in pixels + nearest dot detection (for if there's many in the same area), and then is necessary
-  const positionedEntries = useMemo(() => {
-    if (!rect) return;
-
-    return getParticipant.data?.entries.map((entry) => {
-      return {
-        ...entry,
-        x: interpolate(entry.taboo, [0, 100], [MapPad, rect.width - MapPad]),
-        y: interpolate(
-          entry.interest,
-          [0, 100],
-          [rect.height - MapPad, MapPad]
-        ),
-      };
-    });
-  }, [rect, getParticipant.data]);
-
-  useEffect(() => {
-    if (!rect || !positionedEntries || inSuggestionMode) return;
-
-    const onClick = (e: MouseEvent) => {
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      const maxDist = 30;
-
-      const entry = positionedEntries
-        .map<[Entry & { x: number; y: number }, number]>((entry) => {
-          const dist = Math.abs(entry.x - x) + Math.abs(entry.y - y);
-          return [entry, dist];
-        })
-        .filter((t) => t[1] < maxDist)
-        .sort((s, t) => s[1] - t[1])[0]?.[0];
-
-      setSelectedEntry(entry);
-    };
-
-    ref.current?.addEventListener("click", onClick);
-    return () => ref.current?.removeEventListener("click", onClick);
-  }, [rect, positionedEntries, inSuggestionMode, setSelectedEntry]);
-
   return (
     <div className="bg-gray-100 grow">
       <div className="max-w-[500px] mx-auto">
         <div className="flex items-center px-3 py-2 font-display text-sm">
-          <Link href="/" className="block">
+          <Link href="/" className="block text-emerald-700">
             Kinks with friends
           </Link>
-          <span className="mx-1">{`>`}</span>
-          <Link href="/" className="block text-pink-500">
-            {router.query.groupCode}
+          <span className="ml-1 mr-2">{`/`}</span>
+          <Link href={`/${groupCode}`} className="block text-emerald-700">
+            {groupCode}
           </Link>
-          <span className="mx-1">{`>`}</span>
+          <span className="ml-1 mr-2">{`/`}</span>
         </div>
 
         <div className="mt-4 px-4">
@@ -157,156 +120,101 @@ export default function ParticipantPage() {
           </div> */}
         </div>
 
-        <div className="aspect-square w-full relative touch-none">
+        <KinkMap
+          mapRef={mapRef}
+          kinkItems={getParticipant.data?.entries}
+          enableSelection={!inSuggestionMode}
+          showLabels={!inSuggestionMode}
+          onSelect={setSelectedEntry}
+        >
+          {!getParticipant.data && (
+            <div className="absolute inset-0 flex justify-center items-center p-10">
+              <ThreeDotsIcon size={28} className="animate-spin" />
+            </div>
+          )}
+
           <div
-            className="select-none origin-bottom-left absolute bottom-0 left-0 right-0 h-[30px]"
-            style={{ transform: `rotate(-90deg) translate(0, 30px)` }}
+            className={cx(
+              "pointer-events-none touch-none absolute inset-0 rounded transition-opacity flex justify-center items-center p-10",
+              !inSuggestionMode || touchAt ? "opacity-0" : "opacity-100"
+            )}
           >
-            <div className="absolute inset-0 pl-[30px] pr-[12px] flex justify-between text-gray-400 text-xs leading-[30px]">
-              <div>not for me</div>
-              <div>love this!</div>
-            </div>
-            <div className="absolute inset-0 pl-[30px] pr-[12px] font-display text-xl text-center leading-[30px]">
-              Interest{" "}
-              <span style={{ position: "relative", bottom: -3 }}>→</span>
-            </div>
-          </div>
-          <div className="select-none absolute bottom-0 left-0 right-0 h-[30px]">
-            <div className="absolute inset-0 pl-[30px] pr-[12px] flex justify-between text-gray-400 text-xs leading-[30px]">
-              <div>ordinary</div>
-              <div>shameful</div>
-            </div>
-            <div className="absolute inset-0 pl-[30px] pr-[12px] font-display text-xl text-center leading-[30px]">
-              Taboo <span style={{ position: "relative", bottom: -3 }}>→</span>
+            <div className="text-xl text-center leading-snug">
+              <span className="bg-white bg-opacity-60">
+                {numJustPlaced === 0 ? (
+                  "Select a spot on your map to place the kink"
+                ) : numJustPlaced === 1 ? (
+                  <span>
+                    Excellent!
+                    <br />
+                    And what about this one?
+                  </span>
+                ) : numJustPlaced === 2 ? (
+                  "The more kinks the better :)"
+                ) : numJustPlaced === 3 ? (
+                  "Data data data!"
+                ) : null}
+              </span>
             </div>
           </div>
 
           <div
-            ref={ref}
-            className="bg-white rounded absolute top-[12px] right-[12px] left-[30px] bottom-[30px] shadow-lg overflow-hidden select-none"
-          >
-            <div>
-              {positionedEntries?.map((entry) => {
-                return (
-                  <div
-                    key={entry.uuid}
-                    style={{
-                      position: "absolute",
-                      left: entry.x,
-                      top: entry.y,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: DotSize,
-                        height: DotSize,
-                        marginLeft: -DotSize / 2,
-                        marginBlock: -DotSize / 2,
-                      }}
-                      className="bg-blue-400 rounded-full transition-all"
-                    ></div>
-                    <div
-                      className={cx(
-                        "absolute whitespace-nowrap text-[10px] leading-[14px] select-none text-gray-500 transition-all",
-                        inSuggestionMode
-                          ? "opacity-0 translate-y-1"
-                          : "opacity-100 translate-y-0"
-                      )}
-                      style={{
-                        top: DotSize / 2,
-                        left: -20,
-                      }}
-                    >
-                      {entry.kink}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            className={cx(
+              "pointer-events-none touch-none absolute inset-0 bg-pink-500 rounded transition-opacity",
+              touchAt
+                ? "opacity-80"
+                : selectedEntry
+                ? "opacity-80"
+                : "opacity-0"
+            )}
+          ></div>
 
+          {touchAt && (
             <div
-              className={cx(
-                "pointer-events-none touch-none absolute inset-0 rounded transition-opacity flex justify-center items-center p-10",
-                !inSuggestionMode || touchAt ? "opacity-0" : "opacity-100"
-              )}
+              key="add"
+              style={{
+                touchAction: "none",
+                pointerEvents: "none",
+                position: "absolute",
+                left: touchAt.x,
+                top: touchAt.y,
+              }}
             >
-              <div className="text-xl text-center">
-                <span className="bg-white bg-opacity-60">
-                  {numJustPlaced === 0 ? (
-                    "Select a spot on your map to place the kink"
-                  ) : numJustPlaced === 1 ? (
-                    <span>
-                      Excellent!
-                      <br />
-                      And what about this one?
-                    </span>
-                  ) : numJustPlaced === 2 ? (
-                    "The more kinks the better :)"
-                  ) : numJustPlaced === 3 ? (
-                    "Data data data!"
-                  ) : null}
-                </span>
-              </div>
+              <div
+                style={{
+                  width: KinkMap.EditDotSize,
+                  height: KinkMap.EditDotSize,
+                  marginTop: -KinkMap.EditDotSize / 2,
+                  marginLeft: -KinkMap.EditDotSize / 2,
+                }}
+                className="bg-pink-500 rounded-full border-white border-[4px] shadow-lg"
+              ></div>
             </div>
+          )}
 
+          {selectedEntry && (
             <div
-              className={cx(
-                "pointer-events-none touch-none absolute inset-0 bg-pink-500 rounded transition-opacity",
-                touchAt
-                  ? "opacity-80"
-                  : selectedEntry
-                  ? "opacity-80"
-                  : "opacity-0"
-              )}
-            ></div>
-
-            {touchAt && (
+              key="edit"
+              style={{
+                touchAction: "none",
+                pointerEvents: "none",
+                position: "absolute",
+                left: selectedEntry.x,
+                top: selectedEntry.y,
+              }}
+            >
               <div
-                key="add"
                 style={{
-                  touchAction: "none",
-                  pointerEvents: "none",
-                  position: "absolute",
-                  left: touchAt.x,
-                  top: touchAt.y,
+                  width: KinkMap.EditDotSize,
+                  height: KinkMap.EditDotSize,
+                  marginTop: -KinkMap.EditDotSize / 2,
+                  marginLeft: -KinkMap.EditDotSize / 2,
                 }}
-              >
-                <div
-                  style={{
-                    width: EditDotSize,
-                    height: EditDotSize,
-                    marginTop: -EditDotSize / 2,
-                    marginLeft: -EditDotSize / 2,
-                  }}
-                  className="bg-pink-500 rounded-full border-white border-[4px] shadow-lg"
-                ></div>
-              </div>
-            )}
-
-            {selectedEntry && (
-              <div
-                key="edit"
-                style={{
-                  touchAction: "none",
-                  pointerEvents: "none",
-                  position: "absolute",
-                  left: selectedEntry.x,
-                  top: selectedEntry.y,
-                }}
-              >
-                <div
-                  style={{
-                    width: EditDotSize,
-                    height: EditDotSize,
-                    marginTop: -EditDotSize / 2,
-                    marginLeft: -EditDotSize / 2,
-                  }}
-                  className="animate-zoom bg-pink-500 rounded-full border-white border-[4px] shadow-lg"
-                ></div>
-              </div>
-            )}
-          </div>
-        </div>
+                className="animate-zoom bg-pink-500 rounded-full border-white border-[4px] shadow-lg"
+              ></div>
+            </div>
+          )}
+        </KinkMap>
 
         {sugg.isOpen ? (
           sugg.render()

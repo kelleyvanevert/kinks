@@ -1,13 +1,132 @@
-import { KinkModal } from "./[code]/KinkModal";
+import { useRef, useState } from "react";
+import { GetServerSideProps } from "next";
+import Link from "next/link";
+import cx from "classnames";
+import { KinkMap } from "@/components/KinkMap";
+import { useApiQuery } from "@/lib/ApiClient";
+import { GetGroup, KinkStat } from "@/lib/methods";
+import { KinkStatBox } from "./[code]/KinkStatBox";
+import { ThreeDotsIcon } from "@/ui/icons/ThreeDotsIcon";
 
-export default function GroupPage() {
+type Props = {
+  groupCode: string;
+};
+
+export const getServerSideProps: GetServerSideProps<Props> = async (
+  context
+) => {
+  return {
+    props: {
+      groupCode: String(context.params?.groupCode),
+    },
+  };
+};
+
+export default function GroupPage({ groupCode }: Props) {
+  const getGroup = useApiQuery(GetGroup, {
+    groupCode,
+  });
+
+  const [selectedKinkStat, setSelectedKinkStat] = useState<
+    KinkStat & { x: number; y: number }
+  >();
+
+  const mapRef = useRef<HTMLDivElement>(null);
+
   return (
-    <div className="p-3">
-      <div className="text-pink-500 font-display px-2 py-1 bg-pink-50 rounded">
-        Kinks with friends
-      </div>
+    <div className="bg-gray-100 grow">
+      <div className="max-w-[500px] mx-auto">
+        <div className="flex items-center px-3 py-2 font-display text-sm">
+          <Link href="/" className="block text-emerald-700">
+            Kinks with friends
+          </Link>
+          <span className="ml-1 mr-2">{`/`}</span>
+        </div>
 
-      {/* <KinkModal /> */}
+        <div className="mt-4 px-4">
+          <h1 className="font-display text-center text-3xl">
+            Kinks of{" "}
+            <span className="text-emerald-600 bg-emerald-700 bg-opacity-20 px-1 inline-block">
+              {groupCode}
+            </span>
+          </h1>
+          <div className="mt-2 text-gray-500 text-sm text-center leading-tight">
+            So far,{" "}
+            <span className="font-bold text-black">
+              {getGroup.data?.numParticipants ?? "?"} people
+            </span>{" "}
+            have contributed their kinks to this group's dataset.
+          </div>
+          <div className="mt-2 mb-4 text-gray-500 text-sm text-center leading-tight">
+            The map shows their average attitudes towards kinks. Their personal
+            data remains anonymous.
+          </div>
+        </div>
+
+        <KinkMap
+          mapRef={mapRef}
+          kinkItems={getGroup.data?.kinks}
+          enableSelection
+          showLabels
+          onSelect={setSelectedKinkStat}
+        >
+          {!getGroup.data && (
+            <div className="absolute inset-0 flex justify-center items-center p-10">
+              <ThreeDotsIcon size={28} className="animate-spin" />
+            </div>
+          )}
+
+          {getGroup.data && !getGroup.data.kinks && (
+            <div className="absolute inset-0 flex justify-center items-center p-10">
+              <div className="text-lg text-center leading-snug">
+                <span className="bg-white bg-opacity-60">
+                  Not enough participants have entered data in this group yet.
+                  <br />
+                  <br />
+                  Data will be shown when at least 4 people have participated.
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div
+            className={cx(
+              "pointer-events-none touch-none absolute inset-0 bg-pink-500 rounded transition-opacity",
+              selectedKinkStat ? "opacity-80" : "opacity-0"
+            )}
+          ></div>
+
+          {selectedKinkStat && (
+            <div
+              key="edit"
+              style={{
+                touchAction: "none",
+                pointerEvents: "none",
+                position: "absolute",
+                left: selectedKinkStat.x,
+                top: selectedKinkStat.y,
+              }}
+            >
+              <div
+                style={{
+                  width: KinkMap.EditDotSize,
+                  height: KinkMap.EditDotSize,
+                  marginTop: -KinkMap.EditDotSize / 2,
+                  marginLeft: -KinkMap.EditDotSize / 2,
+                }}
+                className="animate-zoom bg-pink-500 rounded-full border-white border-[4px] shadow-lg"
+              ></div>
+            </div>
+          )}
+        </KinkMap>
+
+        {selectedKinkStat ? (
+          <KinkStatBox
+            stat={selectedKinkStat}
+            onDismiss={() => setSelectedKinkStat(undefined)}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }

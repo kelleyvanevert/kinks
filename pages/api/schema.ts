@@ -149,7 +149,7 @@ builder.queryField("group", (t) => {
 
       let kinks: undefined | KinkStat[] = undefined;
 
-      if (num_entries >= 4) {
+      if (num_participants >= 4) {
         const res = await db.pool.query(
           `
             select
