@@ -10,7 +10,7 @@ export default function HomePage() {
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        router.push(`/` + groupCode.replace(/[^a-zA-Z0-9_-]/g, ""));
+        router.push(`/` + groupCode.replace(/[^a-z0-9_-]/g, ""));
       }}
       className="absolute inset-0 flex flex-col justify-center items-center p-10"
     >
@@ -28,6 +28,10 @@ export default function HomePage() {
           onChange={(e) =>
             setGroupCode(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ""))
           }
+          autoCapitalize="off"
+          autoComplete="off"
+          autoCorrect="off"
+          autoFocus
         />
 
         <button
