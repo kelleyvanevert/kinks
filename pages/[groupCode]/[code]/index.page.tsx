@@ -7,55 +7,27 @@ import { interpolate } from "@/lib/interpolate";
 import { useDrag } from "@/lib/useDrag";
 import { ExplainerBox } from "./ExplainerBox";
 import { useBoundingClientRect } from "@/lib/useBoundingClientRect";
-
-type PageState = {
-  mode: "suggestion";
-};
+import { useApiMutation, useApiQuery } from "@/lib/ApiClient";
+import { Entry, GetParticipant, UpsertEntry } from "@/lib/methods";
 
 const MapPad = 8;
-const DotSize = 8;
+const DotSize = 6;
 const EditDotSize = 20;
-
-type Entry = {
-  id: string;
-  kink: string;
-  interest: number;
-  taboo: number;
-};
 
 export default function ParticipantPage() {
   const router = useRouter();
 
-  // const [state, setState] = useState<PageState>({
-  //   mode: "suggestion",
-  // });
+  const getParticipant = useApiQuery(
+    GetParticipant,
+    router.isReady && {
+      groupCode: String(router.query.groupCode),
+      code: String(router.query.code),
+    }
+  );
 
   const sugg = useSuggestionBox();
   const inSuggestionMode = sugg.isOpen;
   const [numJustPlaced, setNumJustPlaced] = useState(0);
-
-  const [entries, setKinks] = useState<Entry[]>(() => {
-    return [
-      {
-        id: "bn8723",
-        kink: "cunnilingus",
-        interest: 50,
-        taboo: 30,
-      },
-      {
-        id: "dh123t",
-        kink: "light bondage (receiving)",
-        interest: 10,
-        taboo: 23,
-      },
-      {
-        id: "3489h2g",
-        kink: "dragons",
-        interest: 82,
-        taboo: 12,
-      },
-    ];
-  });
 
   const ref = useRef<HTMLDivElement>(null);
 
@@ -74,31 +46,42 @@ export default function ParticipantPage() {
     sugg.open();
   };
 
+  const upsertEntry = useApiMutation(UpsertEntry);
+
   const { touchAt } = useDrag(ref, {
     disabled: !inSuggestionMode,
     padding: MapPad,
-    onFinish(pos, rect) {
+    async onFinish(pos, rect) {
       if (!sugg) return;
 
-      const taboo = interpolate(
-        pos.x,
-        [MapPad, rect.width - MapPad],
-        [0, 100],
-        "clamp"
+      const taboo = Math.round(
+        interpolate(pos.x, [MapPad, rect.width - MapPad], [0, 100], "clamp")
       );
-      const interest =
-        100 -
-        interpolate(pos.y, [MapPad, rect.height - MapPad], [0, 100], "clamp");
 
-      setKinks((curr) => [
-        ...curr,
-        {
-          id: "" + Math.random(),
+      const interest = Math.round(
+        100 -
+          interpolate(pos.y, [MapPad, rect.height - MapPad], [0, 100], "clamp")
+      );
+
+      await upsertEntry.mutateAsync({
+        input: {
+          group_code: String(router.query.groupCode),
+          code: String(router.query.code),
           kink: sugg.kink,
           taboo,
           interest,
         },
-      ]);
+      });
+
+      // setKinks((curr) => [
+      //   ...curr,
+      //   {
+      //     id: "" + Math.random(),
+      //     kink: sugg.kink,
+      //     taboo,
+      //     interest,
+      //   },
+      // ]);
 
       sugg.next();
       setNumJustPlaced((n) => n + 1);
@@ -111,7 +94,7 @@ export default function ParticipantPage() {
   const positionedEntries = useMemo(() => {
     if (!rect) return;
 
-    return entries.map((entry) => {
+    return getParticipant.data?.entries.map((entry) => {
       return {
         ...entry,
         x: interpolate(entry.taboo, [0, 100], [MapPad, rect.width - MapPad]),
@@ -122,7 +105,7 @@ export default function ParticipantPage() {
         ),
       };
     });
-  }, [rect, entries]);
+  }, [rect, getParticipant.data]);
 
   useEffect(() => {
     if (!rect || !positionedEntries || inSuggestionMode) return;
@@ -199,12 +182,12 @@ export default function ParticipantPage() {
           >
             <div>
               {positionedEntries?.map((entry) => {
-                const isSelected = entry.id === selectedEntry?.id;
+                const isSelected = entry.uuid === selectedEntry?.uuid;
                 const size = isSelected ? EditDotSize : DotSize;
 
                 return (
                   <div
-                    key={entry.id}
+                    key={entry.uuid}
                     style={{
                       position: "absolute",
                       left: entry.x,
@@ -219,7 +202,7 @@ export default function ParticipantPage() {
                         marginBlock: -size / 2,
                       }}
                       className={cx(
-                        "bg-pink-500 rounded-full transition-all",
+                        "bg-blue-400 rounded-full transition-all",
                         isSelected &&
                           "border-white border-[4px] shadow-lg utline outline-[rgba(0,0,0,0.1)]"
                       )}
