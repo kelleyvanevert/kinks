@@ -20,10 +20,33 @@ class Entry {
 }
 
 const builder = new SchemaBuilder<{
+  Scalars: {
+    JSONObject: {
+      Input: string | Record<string, any>;
+      Output: Record<string, any>;
+    };
+  };
   Context: {
     isAdmin?: boolean;
   };
 }>({});
+
+builder.scalarType("JSONObject", {
+  serialize(obj) {
+    return obj;
+  },
+  parseValue(data) {
+    if (typeof data === "string") {
+      return JSON.parse(data);
+    } else if (data && typeof data === "object") {
+      return { ...data };
+    } else {
+      throw new Error(
+        "Value must be an object, or JSON-serialized object string"
+      );
+    }
+  },
+});
 
 type KinkStat = {
   kink: string;
@@ -97,6 +120,49 @@ builder.objectType(Entry, {
       taboo: t.exposeInt("taboo"),
     };
   },
+});
+
+builder.queryField("stats", (t) => {
+  return t.field({
+    type: "JSONObject",
+    async resolve(parent, args, context, info) {
+      if (!context.isAdmin) {
+        throw new GraphQLError("Unauthorized", {
+          extensions: {
+            code: "UNAUTHORIZED",
+          },
+        });
+      }
+
+      const res = await db.pool.query(
+        `
+          select
+            count(distinct group_code) as num_groups,
+            count(distinct concat(group_code, '+', code)) as num_participants,
+            count(distinct uuid) as num_entries,
+            count(distinct kink) as num_kinks
+          from entries
+        `
+      );
+
+      const res2 = await db.pool.query(
+        `
+          select avg(num_participants) as avg_participants_per_group
+          from (
+            select
+              count(distinct code) as num_participants
+            from entries
+            group by group_code
+          ) as pre
+        `
+      );
+
+      return {
+        ...res.rows[0],
+        ...res2.rows[0],
+      };
+    },
+  });
 });
 
 builder.queryField("groups", (t) => {

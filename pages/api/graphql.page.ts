@@ -3,6 +3,10 @@ import { createYoga } from "graphql-yoga";
 import md5 from "md5";
 import { schema } from "./schema";
 
+if (!process.env.SECRET) {
+  throw new Error("No SECRET env var provided");
+}
+
 export default createYoga<{
   req: NextApiRequest;
   res: NextApiResponse;
@@ -12,7 +16,8 @@ export default createYoga<{
   context({ req }) {
     const isAdmin =
       !!req.headers["authorization"] &&
-      md5(req.headers["authorization"]) === "60a0aca55d2df93a2eec0e5313db5a8b";
+      md5(req.headers["authorization"] + process.env.SECRET) ===
+        "1ea3b28d6c4454005075f36aa54c28d9";
 
     return {
       isAdmin,
