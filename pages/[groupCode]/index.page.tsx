@@ -1,12 +1,15 @@
 import { useRef, useState } from "react";
 import { GetServerSideProps } from "next";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import cx from "classnames";
 import { KinkMap } from "@/components/KinkMap";
 import { useApiQuery } from "@/lib/ApiClient";
 import { GetGroup, KinkStat } from "@/lib/methods";
 import { KinkStatBox } from "./[code]/KinkStatBox";
 import { ThreeDotsIcon } from "@/ui/icons/ThreeDotsIcon";
+import { Button } from "@/components/Button";
+import { ArrowRightIcon } from "@/ui/icons/ArrowRightIcon";
 
 type Props = {
   groupCode: string;
@@ -23,6 +26,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async (
 };
 
 export default function GroupPage({ groupCode }: Props) {
+  const router = useRouter();
+
   const getGroup = useApiQuery(GetGroup, {
     groupCode,
   });
@@ -34,7 +39,7 @@ export default function GroupPage({ groupCode }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="bg-gray-100 grow">
+    <div className="bg-gray-100 grow pb-10">
       <div className="max-w-[500px] mx-auto">
         <div className="flex items-center px-3 py-2 font-display text-sm">
           <Link href="/" className="block text-emerald-700">
@@ -147,6 +152,17 @@ export default function GroupPage({ groupCode }: Props) {
             <div className="text-center mt-3 font-medium">
               https://kinks.klve.nl/{groupCode}/
               <span className="bg-pink-500 italic text-white px-1">code</span>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-4 justify-center">
+              <Button
+                Icon={ArrowRightIcon}
+                label="Give me a random code"
+                onClick={() => {
+                  const code = Math.random().toString(36).slice(2);
+                  router.push(`/${groupCode}/${code}`);
+                }}
+              />
             </div>
           </div>
         )}

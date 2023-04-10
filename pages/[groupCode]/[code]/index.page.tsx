@@ -109,7 +109,7 @@ export default function ParticipantPage({ groupCode, code }: Props) {
   });
 
   return (
-    <div className="bg-gray-100 grow">
+    <div className="bg-gray-100 grow pb-10">
       <div className="max-w-[500px] mx-auto">
         <div className="flex items-center px-3 py-2 font-display text-sm">
           <Link href="/" className="block text-emerald-700">
