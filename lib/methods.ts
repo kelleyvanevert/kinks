@@ -170,3 +170,36 @@ export const RemoveEntry: ApiQueryDef<
     });
   },
 };
+
+export const TransferData: ApiQueryDef<
+  boolean,
+  {
+    input: {
+      source_group_code: string;
+      source_code: string;
+      group_code: string;
+      code: string;
+    };
+  }
+> = {
+  extractData: "transferData",
+  isMutation: true,
+  query() {
+    return gql`
+      mutation TransferDataInput($input: TransferDataInput!) {
+        transferData(input: $input)
+      }
+    `;
+  },
+  invalidation(client, success, params) {
+    if (!success) return;
+
+    client.invalidate([
+      GetParticipant,
+      {
+        groupCode: params.input.group_code,
+        code: params.input.code,
+      },
+    ]);
+  },
+};

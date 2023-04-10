@@ -11,6 +11,7 @@ import { Entry, GetParticipant, UpsertEntry } from "@/lib/methods";
 import { EntryBox } from "./EntryBox";
 import { KinkMap } from "@/components/KinkMap";
 import { ThreeDotsIcon } from "@/ui/icons/ThreeDotsIcon";
+import { TransferBox } from "./TransferBox";
 
 type Props = {
   groupCode: string;
@@ -34,6 +35,8 @@ export default function ParticipantPage({ groupCode, code }: Props) {
     code,
   });
 
+  const [inTransferMode, setInTransferMode] = useState(false);
+
   const sugg = useSuggestionBox({
     exclude: getParticipant.data?.entries.map((e) => e.kink),
   });
@@ -50,6 +53,12 @@ export default function ParticipantPage({ groupCode, code }: Props) {
     disabled: !selectedEntry,
     padding: KinkMap.MapPad,
   });
+
+  const enterTransferMode = () => {
+    setSelectedEntry(undefined);
+    setNumJustPlaced(0);
+    setInTransferMode(true);
+  };
 
   const enterSuggestionMode = () => {
     setSelectedEntry(undefined);
@@ -213,7 +222,13 @@ export default function ParticipantPage({ groupCode, code }: Props) {
           )}
         </KinkMap>
 
-        {sugg.isOpen ? (
+        {inTransferMode ? (
+          <TransferBox
+            code={code}
+            groupCode={groupCode}
+            onClose={() => setInTransferMode(false)}
+          />
+        ) : sugg.isOpen ? (
           sugg.render()
         ) : selectedEntry ? (
           <EntryBox
@@ -221,7 +236,10 @@ export default function ParticipantPage({ groupCode, code }: Props) {
             onDismiss={() => setSelectedEntry(undefined)}
           />
         ) : (
-          <ExplainerBox onAskForSuggestions={enterSuggestionMode} />
+          <ExplainerBox
+            onAskForSuggestions={enterSuggestionMode}
+            onEnterTransferMode={enterTransferMode}
+          />
         )}
       </div>
     </div>

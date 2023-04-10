@@ -1,6 +1,10 @@
 import "dotenv/config";
 import { Pool } from "pg";
 
+if (!process.env.DATABASE_URL) {
+  throw new Error("No DATABASE_URL env var provided");
+}
+
 class Database {
   pool = new Pool({
     connectionString: process.env.DATABASE_URL!,

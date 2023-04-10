@@ -43,6 +43,10 @@ export class ApiClient {
   ) {
     const responseData = await request("/api/graphql", def.query(), {
       ...(variables as any),
+    }).catch((err: any) => {
+      if (err && "response" in err) {
+        throw err.response;
+      }
     });
 
     const data =
@@ -57,6 +61,19 @@ export class ApiClient {
     }
 
     return data;
+  }
+
+  async invalidate<R, P>(
+    def: string | ApiQueryDef<R, P> | [ApiQueryDef<R, P>, P]
+  ) {
+    const key: any =
+      typeof def === "string"
+        ? def
+        : Array.isArray(def)
+        ? [getQueryDefKey((def as any)[0]), (def as any)[1]]
+        : getQueryDefKey(def);
+
+    await this.queryClient.invalidateQueries(key);
   }
 
   updateCache<R, P>(

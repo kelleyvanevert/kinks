@@ -67,7 +67,7 @@ export function useSuggestionBox({ exclude }: Props) {
                 }
               />
               <div className="mt-6 text-xs text-purple-900 text-opacity-60">
-                Write in any kink you want. (We don't kinkshame!) Also feel free
+                Write in any kink you want. (We won't kinkshame!) Also feel free
                 to write in a kink that you specifically aren't interested in.
               </div>
             </div>

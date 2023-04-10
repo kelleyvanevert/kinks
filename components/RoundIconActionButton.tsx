@@ -1,5 +1,5 @@
-import { SvgIconProps } from "@/ui/SvgIcon";
 import { FC } from "react";
+import { SvgIconProps } from "@/ui/SvgIcon";
 
 type Props = {
   Icon: FC<SvgIconProps>;

@@ -368,4 +368,62 @@ builder.mutationField("removeEntry", (t) => {
   });
 });
 
+const TransferDataInput = builder.inputType("TransferDataInput", {
+  fields: (t) => ({
+    source_group_code: t.string({ required: true }),
+    source_code: t.string({ required: true }),
+    group_code: t.string({ required: true }),
+    code: t.string({ required: true }),
+  }),
+});
+
+builder.mutationField("transferData", (t) => {
+  return t.field({
+    type: "Boolean",
+    nullable: false,
+    args: {
+      input: t.arg({ type: TransferDataInput, required: true }),
+    },
+    async resolve(root, args) {
+      const {
+        rows: [{ count }],
+      } = await db.pool.query(
+        `
+          select count(*) as count
+          from entries
+          where group_code = $1 and code = $2
+        `,
+        [args.input.source_group_code, args.input.source_code]
+      );
+
+      if (Number(count) === 0) {
+        throw new GraphQLError("Source group or participant does not exist");
+      }
+
+      await db.pool.query(
+        `
+          insert into entries(group_code, code, kink, interest, taboo)
+
+          select $3 as group_code, $4 as code, kink, interest, taboo
+          from entries
+          where group_code = $1 and code = $2
+
+          on conflict (group_code, code, kink) do update
+          set
+            interest = excluded.interest,
+            taboo = excluded.taboo
+        `,
+        [
+          args.input.source_group_code,
+          args.input.source_code,
+          args.input.group_code,
+          args.input.code,
+        ]
+      );
+
+      return true;
+    },
+  });
+});
+
 export const schema = builder.toSchema();

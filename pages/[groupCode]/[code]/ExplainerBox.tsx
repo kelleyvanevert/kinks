@@ -1,11 +1,17 @@
-import { FilledCircledPlusIcon } from "@/ui/icons/FilledCircledPlusIcon";
 import { useRouter } from "next/router";
+import { Button } from "@/components/Button";
+import { FilledCircledPlusIcon } from "@/ui/icons/FilledCircledPlusIcon";
+import { TransferDataIcon } from "@/ui/icons/TransferDataIcon";
 
 type Props = {
   onAskForSuggestions: () => void;
+  onEnterTransferMode: () => void;
 };
 
-export function ExplainerBox({ onAskForSuggestions }: Props) {
+export function ExplainerBox({
+  onAskForSuggestions,
+  onEnterTransferMode,
+}: Props) {
   const router = useRouter();
 
   return (
@@ -26,14 +32,17 @@ export function ExplainerBox({ onAskForSuggestions }: Props) {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-4 justify-center">
-        <button
-          type="button"
+        <Button
+          Icon={FilledCircledPlusIcon}
           onClick={onAskForSuggestions}
-          className="font-medium flex items-center rounded border border-emerald-800 px-3 py-1 transition-transform active:scale-95 focus:bg-emerald-800 focus:bg-opacity-10"
-        >
-          <FilledCircledPlusIcon className="mr-1" />
-          Add new kinks
-        </button>
+          label="Add new kinks"
+        />
+
+        <Button
+          Icon={TransferDataIcon}
+          onClick={onEnterTransferMode}
+          label="Transfer data"
+        />
       </div>
     </div>
   );
