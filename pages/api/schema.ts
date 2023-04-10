@@ -199,6 +199,19 @@ builder.queryField("group", (t) => {
       group_code: t.arg.string({ required: true }),
     },
     async resolve(parent, args) {
+      // const res0 = await db.pool.query(
+      //   `
+      //     select min(count) as min
+      //     from (
+      //       select count(*) as count
+      //       from entries
+      //       where group_code = $1
+      //       group by code
+      //     ) as t
+      //   `,
+      //   [args.group_code]
+      // );
+
       const res = await db.pool.query(
         `
           select
